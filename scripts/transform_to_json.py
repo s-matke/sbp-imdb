@@ -152,7 +152,7 @@ def insert_cast(title_info_file, cast_info_file, principal_info_path, recnik):
 
     cast = (
         joined_df.groupby('tconst')
-        .apply(lambda x: x[['nconst', 'primaryName', 'birthYear', 'deathYear', 'category']].to_dict('reconrds'))
+        .apply(lambda x: x[['nconst', 'primaryName', 'birthYear', 'deathYear', 'category']].to_dict('records'))
         .reset_index()
         .set_index('tconst')
         .rename(columns={0: 'cast'})
