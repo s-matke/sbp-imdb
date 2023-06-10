@@ -59,14 +59,14 @@ def measure_time(func):
 def filter_dataframe(df_a, column_name, df_b) -> pd.DataFrame:
     return df_a[df_a[column_name].isin(df_b[column_name])]
 
-def convert_to_numeric(column_names, df):
+def convert_to_numeric(column_names, df, downcast):
     if isinstance(column_names, list):
         for column_name in column_names:
-            df[column_name] = pd.to_numeric(df[column_name], errors='coerce')
+            df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast=downcast)
             df[column_name].replace(np.nan, None, inplace=True)
     else:
-        df[column_name] = pd.to_numeric(df[column_name], errors='coerce')
-        df[column_name].replace(np.nan, None, inplace=True)
+        df[column_names] = pd.to_numeric(df[column_names], errors='coerce', downcast=downcast)
+        df[column_names].replace(np.nan, None, inplace=True)
 
 def load_data_into_dataframe(file_path) -> pd.DataFrame:
     return pd.read_csv(file_path, low_memory=True)
@@ -78,8 +78,11 @@ def initial_dictionary(file_path=None) -> dict:
     
     df = load_data_into_dataframe(file_path=file_path)
 
-    convert_to_numeric(['isAdult', 'startYear', 'endYear', 'runtimeMinutes'], df)
+    df["_id"] = df['tconst']
+    convert_to_numeric(['isAdult', 'startYear', 'endYear', 'runtimeMinutes'], df, 'integer')
     df['isAdult'] = df['isAdult'].astype(bool)
+    # df['startYear'] = df['startYear'].astype(int)
+    # df['endYear'] = df['endYear'].astype(int)
 
     df['genres'] = df['genres'].str.split(",")
     df.set_index(df['tconst'], inplace=True)
@@ -95,7 +98,8 @@ def initial_dictionary(file_path=None) -> dict:
 @measure_time
 def insert_ratings(file_path, recnik):
     rating_df = load_data_into_dataframe(file_path=file_path)
-    convert_to_numeric(['averageRating', 'numVotes'], rating_df)
+    convert_to_numeric('averageRating', rating_df, 'float')
+    convert_to_numeric('numVotes', rating_df, 'integer')
 
     for row in rating_df.itertuples():
         if not recnik.get(row.tconst):
@@ -110,7 +114,7 @@ def insert_ratings(file_path, recnik):
 @measure_time
 def insert_episodes(file_path, recnik):
     episode_df = load_data_into_dataframe(file_path=file_path)
-    convert_to_numeric(['episodeNumber', 'seasonNumber'], episode_df)
+    convert_to_numeric(['episodeNumber', 'seasonNumber'], episode_df, 'integer')
 
     for row in episode_df.itertuples():
         if not recnik.get(row.parentTconst) or not recnik.get(row.tconst):
@@ -144,7 +148,7 @@ def insert_cast(title_info_file, cast_info_file, principal_info_path, recnik):
     del cast_df, principal_df
 
     joined_df.drop(['primaryProfession', 'knownForTitles'], axis=1, inplace=True)
-    convert_to_numeric(['birthYear', 'deathYear'], joined_df)
+    convert_to_numeric(['birthYear', 'deathYear'], joined_df, 'integer')
 
     cast = (
         joined_df.groupby('tconst')
@@ -166,6 +170,7 @@ def export_json(recnik, output_file_name):
     # json_output = json.dumps(recnik)
     with open(output_file_name, "w") as output_file:
         for _, value in recnik.items():
+            value = {k: v for k, v in value.items() if k != 'tconst'}
             json_object = json.dumps(value)
             output_file.write(json_object + "\n")
 
