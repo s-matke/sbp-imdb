@@ -37,6 +37,8 @@ output_path = DATA_DIR + 'output.json'
 
 def measure_time(func):
     def wrapper(*args, **kwargs):
+        if func.__name__ == "insert_cast":
+            print(f'[{func.__name__}] initialised. Don\'t panic! It can take up to 5 minutes...')
         start_time = time.time()
         result = func(*args, **kwargs)
         execution_time = time.time() - start_time
