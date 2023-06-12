@@ -1,4 +1,5 @@
 //Top 5 total_times_acting
+//0.095
 db.cast.createIndex({"details.total_times_acting":-1, "category":1})
 db.cast.aggregate([
 {
@@ -25,6 +26,7 @@ db.cast.aggregate([
 ])
 
 //Top 5 total_minutes_acting
+//0.013
 db.cast.createIndex({"category":1, "details.total_minutes_acting":-1})
 db.cast.aggregate([
 {
@@ -51,6 +53,7 @@ db.cast.aggregate([
 ])
 
 //Top 5 actor and director
+//0.086
 db.cast.aggregate([
 {
     $match: {
@@ -68,6 +71,7 @@ db.cast.aggregate([
 ])
 db.series.createIndex({"average_rating.series":-1})
 //Broj epizoda serija sa najvecom prosecnom ocenom
+//0.008
 db.series.aggregate([
 {
     $sort: {
@@ -87,6 +91,7 @@ db.series.aggregate([
 ])
 
 //Najbolja sezona
+//16
 db.series.aggregate([
   {
     $match: {
@@ -155,6 +160,7 @@ db.series.aggregate([
 ])
 
 //Odstupanje rating serija-epizoda
+//0.05
 db.series.aggregate([
 {
     $match: {
@@ -180,6 +186,7 @@ db.series.aggregate([
 ])
 
 //Prosecno po zanrovima
+//11
 db.output.aggregate([
   {
       $unwind: "$genres"
@@ -204,6 +211,7 @@ db.output.aggregate([
 ])
 
 //Kombina zanra
+//9
 db.output.aggregate([
     {
         $group: {
@@ -231,7 +239,7 @@ db.output.aggregate([
 ])
 
 //Broj umrlih
-db.output.aggregate([
+db.cast.aggregate([
     {
         $match: {
             $and: [
@@ -274,4 +282,25 @@ db.output.aggregate([
                 broj: {$size: "$umrli"}
             }
         }
+])
+//Broj umrlih 0.009
+//0.058
+db.cast.createIndex({"deathYear":-1})
+db.cast.aggregate([
+{
+    $match: {
+        "deathYear": {
+            $gte:2000
+        }
+    }
+}
+,
+{
+    $group: {
+        "_id":null,
+        count: {
+            $sum:1
+        }
+    }
+}
 ])
