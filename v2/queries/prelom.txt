@@ -1,0 +1,118 @@
+db.imdb.find({
+    "startYear": 1890
+})
+
+db.imdb.find({
+    "startYear": 1890
+}, {"cast.category": 1})
+
+db.imdb.dropIndex("startYear_1")
+db.imdb.createIndex({"startYear": 1})
+
+db.prelom-cast.find()
+
+db.imdb.aggregate([
+    {
+        $unwind: "$cast"
+    },
+    {
+        $group: {
+            _id:{
+                "nconst": "$cast.nconst",
+                "primaryName": "$cast.primaryName",
+                "category": "$cast.category",
+                "birthYear": "$cast.birthYear",
+                "deathYear": "$cast.deathYear",
+//                "cast.deathYear": 1
+            },
+            "titles": {$addToSet: "$primaryTitle"},
+            "total_minutes_acting": {
+                $sum: {
+                    $cond: [
+                        {
+                            $or: [
+                                { $in: ["actor", "$cast.category"] },
+                                { $in: ["actress", "$cast.category"] }
+                            ]
+                        }, "$runtimeMinutes", 0
+                    ]
+                }},
+            "total_times_acting": {
+                "$sum": {
+                    "$cond": [ 
+                        {
+                            $or: [
+                                { $in: ["actor", "$cast.category"]},
+                                { $in: ["actress", "$cast.category"]}
+                            ]
+//                        $in: [ "actor", "$cast.category" ]
+//                          $in: ["$cast.category", ["actor", "actress"]]
+                     }, 1, 0]
+                }
+            },
+            "total_times_directing": {
+                "$sum": {
+                    "$cond": [ 
+                        {
+                            $or: [
+                                {$in: ["director", "$cast.category"]},
+                                {$in: [" director", "$cast.category"]}]
+                     }, 1, 0]
+                }
+            },
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            "nconst": "$_id.nconst",
+            "primaryName": "$_id.primaryName",
+            "birthYear": "$_id.birthYear",
+            "deathYear": "$_id.deathYear",
+            "category": "$_id.category",
+            "titles": "$titles",
+            "details": {
+                "total_minutes_acting": "$total_minutes_acting",
+                "total_times_acting": "$total_times_acting",
+                "total_times_directing": "$total_times_directing"
+            }
+        }
+    },
+    { $out: {db: "data", coll: "prelom-cast"}}
+], {allowDiskUse: true});
+
+db.imdb.find({
+    "startYear": 1890,
+    "cast.nconst": "nm1961777",
+}, {"cast.nconst": 1, "cast.primaryName": 1, "runtimeMinutes": 1})
+
+
+db.imdb.aggregate([
+    {
+        $match: {
+            "startYear": 1890
+        }  
+    },
+    {
+        $unwind: "$cast"
+    },
+    {
+        $group: {
+            _id: {
+                "nconst": "$cast.nconst",
+                "primaryName": "$cast.primaryName",
+                "birthYear": "$cast.birthYear",
+                "deathYear": "$cast.deathYear",
+                "category": "$cast.category",
+            },
+            "totalDuration": {$sum: "$runtimeMinutes"},
+            "numOfMovies": {
+                $and: [
+                    {
+                        "cast.category": {$in: [""]}
+                    }
+                ]
+            }
+        }
+    }
+])
