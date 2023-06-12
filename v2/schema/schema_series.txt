@@ -1,0 +1,58 @@
+
+
+db.imdb.aggregate([
+    {
+        $match: {
+            "startYear": {$gte: 1900, $lte: 1960},
+            "primaryTitle": "The Life of Riley"
+        }  
+    },
+    {
+        $unwind: "$episodes"
+    },
+    {
+        $group: {
+            _id: {
+                "tconst": "$tconst",
+                "primaryTitle": "$primaryTitle",
+                "titleType": "$titleType",
+                "isAdult": "$isAdult",
+                "startYear": "$startYear",
+                "endYear": "$endYear",
+                "runtimeMinutes": "$runtimeMinutes",
+                "genres": "$genres",
+                "avgRating": "$rating.avgRating"
+            },
+            "episodes": {$addToSet: "$episodes"},
+            "avg_episodes_rating": {$avg: "$episodes.rating.avgRating"},
+//            "numEps": {$sum: "$episodes.tconst"}
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            "tconst": "$_id.tconst",
+            "primaryTitle": "$_id.primaryTitle",
+            "titleType": "$_id.titleType",
+            "isAdult": "$_id.isAdult",
+            "startYear": "$_id.startYear",
+            "endYear": "$_id.endYear",
+            "runtimeMinutes": "$runtimeMinutes",
+            "genres": "$genres",
+            "average_rating": {
+                "series": "$_id.avgRating",
+                "episodes": "$avg_episode_rating"
+            },
+            "number_of_episodes": {$size: "$episodes"}
+        }
+    }
+//    {
+//        $project: {
+//            _id:1,
+////            "title": "$_id.primaryTitle",
+////            "rating": 1,
+////            "episodes": 0
+//        }
+//    }
+
+])
