@@ -1,10 +1,9 @@
-
-
 db.imdb.aggregate([
     {
         $match: {
-            "startYear": {$gte: 1900, $lte: 1960},
-            "primaryTitle": "The Life of Riley"
+            "titleType": {
+                $in: ["tvSeries", "tvMiniSeries"]
+            }
         }  
     },
     {
@@ -21,7 +20,8 @@ db.imdb.aggregate([
                 "endYear": "$endYear",
                 "runtimeMinutes": "$runtimeMinutes",
                 "genres": "$genres",
-                "avgRating": "$rating.avgRating"
+                "avgRating": "$rating.avgRating",
+                "cast": "$cast"
             },
             "episodes": {$addToSet: "$episodes"},
             "avg_episodes_rating": {$avg: "$episodes.rating.avgRating"},
@@ -41,18 +41,18 @@ db.imdb.aggregate([
             "genres": "$genres",
             "average_rating": {
                 "series": "$_id.avgRating",
-                "episodes": "$avg_episode_rating"
+                "episodes": "$avg_episodes_rating"
             },
-            "number_of_episodes": {$size: "$episodes"}
+            "number_of_episodes": {$size: "$episodes"},
+            "episodes": "$episodes",
+            "cast": "$cast"
+        }
+    },
+    {
+        $out: {
+            db: "data",
+            coll: "series"
         }
     }
-//    {
-//        $project: {
-//            _id:1,
-////            "title": "$_id.primaryTitle",
-////            "rating": 1,
-////            "episodes": 0
-//        }
-//    }
+], {allowDiskUse: true})
 
-])
