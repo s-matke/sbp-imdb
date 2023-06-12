@@ -1,0 +1,68 @@
+//Top 5 total_times_acting
+db.cast.createIndex({"details.total_times_acting":-1, "category":1})
+db.cast.aggregate([
+{
+    $match: {
+        "category": {
+            $in: ["actor", "actress"]  
+        }
+    }
+},
+{
+    $sort: {
+        "details.total_times_acting":-1
+    }
+},
+{
+    $limit:5
+},
+{
+    $project: {
+        "primaryName":1,
+        "details.total_times_acting":1
+    }
+}
+])
+
+//Top 5 total_minutes_acting
+db.cast.createIndex({"category":1, "details.total_minutes_acting":-1})
+db.cast.aggregate([
+{
+    $match: {
+        "category": {
+            $in: ["actor", "actress"]  
+        }
+    }
+},
+{
+    $sort: {
+        "details.total_minutes_acting":-1
+    }
+},
+{
+    $limit:5
+},
+{
+    $project: {
+        "primaryName":1,
+        "details.total_minutes_acting":1
+    }
+}
+])
+
+//Top 5 actor and director
+db.cast.aggregate([
+{
+    $match: {
+        "category": {
+            $in: ["actor", " director"]  
+        }
+    }
+},
+{
+    $project: {
+        "_id":0,
+        "primaryName":1
+    }
+}
+])
