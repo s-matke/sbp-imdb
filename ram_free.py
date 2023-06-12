@@ -1,9 +1,8 @@
 import pandas as pd
-import psutil
 import json
 import time
 
-DATA_DIR = "./data_small/"
+DATA_DIR = "../data_small/"
 
 name_basics_file       = "ImdbName.csv"
 title_akas_file        = "ImdbTitleAkas.csv"
@@ -112,7 +111,6 @@ for key, value in cast.items():
 print("Time taken loading humans: ", time.time() - start)
 # print("Skipped: ", skipped)
 
-print("free mem nakon dodavanja castova: ", psutil.virtual_memory().free/1000000000)
 
 
 start = time.time()

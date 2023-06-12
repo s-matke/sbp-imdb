@@ -152,7 +152,7 @@ def insert_cast(title_info_file, cast_info_file, principal_info_path, recnik):
 
     cast = (
         joined_df.groupby('tconst')
-        .apply(lambda x: x[['nconst', 'primaryName', 'birthYear', 'deathYear', 'category']].to_dict('reconrds'))
+        .apply(lambda x: x[['nconst', 'primaryName', 'birthYear', 'deathYear', 'category']].to_dict('records'))
         .reset_index()
         .set_index('tconst')
         .rename(columns={0: 'cast'})
@@ -168,9 +168,20 @@ def insert_cast(title_info_file, cast_info_file, principal_info_path, recnik):
 @measure_time
 def export_json(recnik, output_file_name):
     # json_output = json.dumps(recnik)
+    i = 0
     with open(output_file_name, "w") as output_file:
         for _, value in recnik.items():
             value = {k: v for k, v in value.items() if k != 'tconst'}
+            value['_id'] = i
+            i+=1
+            json_object = json.dumps(value)
+            output_file.write(json_object + "\n")
+    i += 1
+    with open(output_file_name, "a") as output_file:
+        for _, value in recnik.items():
+            value = {k: v for k, v in value.items() if k != 'tconst'}
+            value['_id'] = i
+            i += 1
             json_object = json.dumps(value)
             output_file.write(json_object + "\n")
 
