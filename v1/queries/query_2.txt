@@ -1,0 +1,395 @@
+//Which genre contains the most movies?
+
+db.imdb.aggregate([
+  {
+      $unwind: "$genres"
+  },
+  {
+      $group: {
+          _id: {
+              genre:"$genres"
+          }, 
+          numberOfMovies:{
+              $sum:1
+              }
+       }
+   },
+   {
+       $sort: {
+           "numberOfMovies":-1
+       }
+   },
+   {
+       $limit:1
+   },
+   {
+       $project: {
+           _id:0,
+           genre:"$_id.genre",
+           numberOfMovies:1
+       }
+   }
+])
+
+db.imdb.find()
+
+
+//How many episodes do the top 10 shows with the highest average rating have? 
+//db.output.createIndex({"titleType": 1})
+db.imdb.aggregate([
+  {
+    $match: {
+      "titleType": { $in: ["tvSeries", "tvMiniSeries"] },
+      $expr: { $gt: [{$size:"$episodes"}, 0] }
+    }
+  },
+  {
+    $sort: {
+      "rating.avgRating": -1
+    }
+  },
+  {
+    $limit: 10
+  },
+  {
+    $project: {
+      _id: 0,
+      rating: "$rating.avgRating",
+      title: "$primaryTitle",
+      numberOfEpisodes: {
+          $size:"$episodes"
+          }
+    }
+  }
+])
+
+
+//Which season is the best rated within the series?
+db.imdb.aggregate([
+  {
+    $match: {
+        "titleType": {
+            $in:["tvSeries", "tvMiniSeries"]
+            },
+        $expr: {
+            $gt: [{$size:"$episodes"}, 0]
+            }
+    }
+  },
+  {
+      $unwind:"$episodes"
+  },
+  {
+    $group: {
+        _id: {
+            idSerije : "$_id",
+            sezona:"$episodes.seasonNumber",
+            title:"$primaryTitle"
+        },
+            rating: {
+                $avg:"$episodes.rating.avgRating"
+                }
+        }
+  },
+  {
+      $sort: {
+          "_id.idSerije":1,
+          "rating":-1
+      }
+  },
+  {
+    $group: {
+      _id: "$_id.idSerije",
+      bestSeason: {
+         $first: {
+             season:"$_id.sezona",
+             rating:"$rating",
+             title:"$_id.title"
+         }
+      }
+    }
+  },
+  {
+      $project: {
+          _id:0,
+          title:"$bestSeason.title",
+          season:"$bestSeason.season",
+          rating:"$bestSeason.rating"
+      }
+  },
+  {
+      $match: {
+          $and: [
+          {
+              season: {
+                  $ne:null
+              }
+          },
+          {
+              rating: {
+                  $ne:null
+              }
+          }
+          ]
+      }
+  }
+])
+
+
+
+//How much is the deviation of the average rating of users for a series in relation to the average of the series obtained on the basis of the average ratings of the episodes of that series
+db.imdb.aggregate([
+  {
+    $match: {
+        "titleType": {
+            $in:["tvSeries", "tvMiniSeries"]
+            },
+        $expr: {
+            $gt: [{$size:"$episodes"}, 0]
+            }
+    }
+  },
+  {
+      $unwind:"$episodes"
+  },
+  {
+    $group: {
+        _id: {
+            idSerije:"$tconst",
+            title:"$primaryTitle"
+        },
+        rating_episode:{
+            $avg:"$episodes.rating.avgRating"
+            },
+        rating_series: {
+            $first: "$rating.avgRating"
+            }
+        }
+  },
+  {
+    $project: {
+        _id:1,
+        title:"$_id.title",
+        rating_episode:1,
+        rating_series:1,
+        difference:{
+            $abs: {
+                $subtract:["$rating_episode", "$rating_series"]
+                }
+            }
+    }
+  },
+  {
+      $match: {
+          difference: {
+              $ne:null
+          }
+      }
+  },
+])
+
+
+//Which director made the most films?
+db.imdb.aggregate([
+{
+    $unwind: "$cast"
+},
+{
+    $match: {
+      "titleType": "movie",
+      "cast.category": {
+          $in:["director"]
+          }
+    }
+},
+{
+    $group: {
+      _id: {
+          idDirector:"$cast.nconst",
+          name:"$cast.primaryName"
+      },
+      numberOfFilms: { 
+          $sum: 1 
+          }
+    }
+},
+{
+    $project: {
+      _id: 0,
+      numberOfFilms: 1,
+      name:"$_id.name"
+    }
+  },
+{
+    $sort: {
+        numberOfFilms:-1
+    }
+},
+{
+    $limit:1
+}
+])
+
+
+//Top 5 actors in relation to the number of films made
+
+db.imdb.aggregate([
+{
+    $unwind: "$cast"
+},
+{
+    $match: {
+      "titleType": "movie",
+      "cast.category": {$in: ["actor", "actress"]}
+    }
+},
+{
+    $group: {
+      _id: {
+          idActor:"$cast.nconst",
+          name:"$cast.primaryName"
+          },
+      numberOfFilms: { $sum: 1 }
+    }
+},
+{
+    $project: {
+      _id: 0,
+      numberOfFilms: 1,
+      name:"$_id.name"
+    }
+  },
+{
+    $sort: {
+        numberOfFilms:-1
+    }
+},
+{
+    $limit:5
+}
+])
+
+//Find people who perform the function of director and actor at the same time
+db.imdb.aggregate([
+//    {
+//        $match: {
+////            "cast.category": {$all: ["actor", " director"]}
+////              "startYear": 2004,
+//              "cast.category": {$size: 2}
+//
+//        }
+//    },
+    {
+        $unwind: "$cast"
+    },
+    {
+        $project: {
+            "title": "$primaryTitle",
+            "actor": "$cast.primaryName",
+            "roles": "$cast.category"
+        }
+    },
+    {
+        $match: {
+            $or: [
+                { roles: {$all: ["actor", " director"]}},
+                { roles: {$all: ["actress", " director"]}}
+            ]
+        }
+    },
+])
+
+
+//Which genre combination is the most popular?
+db.imdb.aggregate([
+    {
+        $group: {
+            _id:"$genres",
+            count: {
+                $sum:1
+            }
+        }
+    },
+    {
+        $sort: {
+            count: -1
+        }
+    },
+//    {
+//        $match: {
+//            $expr: {
+//                $gt: [{$size:"$genres"}, 1]
+//            }
+//        }
+//    },
+    {
+        $limit:1
+    }
+])
+    
+
+
+//What is the number of deceased persons who participated in the filming of films published during the 21st century?
+//db.output.createIndex({"startYear":1, "endYear":1})
+db.output.aggregate([
+    {
+        $match: {
+            $and: [
+            {
+                "startYear": {
+                    $gte:2000
+                }
+            },
+            {
+                "startYear": {
+                    $lte:2100
+                }
+            },
+            {
+                "cast.birthYear": {
+                    $ne:null
+                }
+            },
+            {
+                "cast.deathYear": {
+                    $ne:null
+                }
+            },
+            ]
+        }
+    },
+    {
+        $unwind: "$cast"  
+    },
+    {
+        $group: {
+            _id:0,
+            umrli: {$addToSet: "$cast.primaryName"},
+        }
+    },
+    {
+            $project: {
+                _id:0,
+                umrli: 1,
+                broj: {$size: "$umrli"}
+            }
+        }
+])
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
