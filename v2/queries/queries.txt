@@ -1,4 +1,5 @@
 //Top 5 total_times_acting
+//0.095
 db.cast.createIndex({"details.total_times_acting":-1, "category":1})
 db.cast.aggregate([
 {
@@ -25,6 +26,7 @@ db.cast.aggregate([
 ])
 
 //Top 5 total_minutes_acting
+//0.013
 db.cast.createIndex({"category":1, "details.total_minutes_acting":-1})
 db.cast.aggregate([
 {
@@ -51,6 +53,7 @@ db.cast.aggregate([
 ])
 
 //Top 5 actor and director
+//0.086
 db.cast.aggregate([
 {
     $match: {
@@ -63,6 +66,241 @@ db.cast.aggregate([
     $project: {
         "_id":0,
         "primaryName":1
+    }
+}
+])
+db.series.createIndex({"average_rating.series":-1})
+//Broj epizoda serija sa najvecom prosecnom ocenom
+//0.008
+db.series.aggregate([
+{
+    $sort: {
+        "average_rating.series":-1
+    }
+},
+{
+    $limit:1
+},
+{
+    $project: {
+        _id:0,
+        numberOfEpisodes:"$number_of_episodes",
+        name:"$primaryTitle"
+    }
+}
+])
+
+//Najbolja sezona
+//16
+db.series.aggregate([
+  {
+    $match: {
+        $expr: {
+            $gt: [{$size:"$episodes"}, 0]
+            }
+    }
+  },
+  {
+      $unwind:"$episodes"
+  },
+  {
+    $group: {
+        _id: {
+            idSerije : "$_id",
+            sezona:"$episodes.seasonNumber",
+            title:"$primaryTitle"
+        },
+            rating: {
+                $avg:"$episodes.rating.avgRating"
+                }
+        }
+  },
+  {
+      $sort: {
+          "_id.idSerije":1,
+          "rating":-1
+      }
+  },
+  {
+    $group: {
+      _id: "$_id.idSerije",
+      bestSeason: {
+         $first: {
+             season:"$_id.sezona",
+             rating:"$rating",
+             title:"$_id.title"
+         }
+      }
+    }
+  },
+  {
+      $project: {
+          _id:0,
+          title:"$bestSeason.title",
+          season:"$bestSeason.season",
+          rating:"$bestSeason.rating"
+      }
+  },
+  {
+      $match: {
+          $and: [
+          {
+              season: {
+                  $ne:null
+              }
+          },
+          {
+              rating: {
+                  $ne:null
+              }
+          }
+          ]
+      }
+  }
+])
+
+//Odstupanje rating serija-epizoda
+//0.05
+db.series.aggregate([
+{
+    $match: {
+        $and: [{
+            "average_rating.series": {$ne:null}},{"average_rating.episodes": {$ne:null}}]
+    }
+},
+{
+    $project: {
+         difference:{
+            $abs: {
+                $subtract:["$average_rating.series", "$average_rating.episodes"]
+                }
+            },
+            _id:0,
+            name:"$primaryTitle",
+            rating: {
+                rating_episode:"$average_rating.episodes",
+                rating_series:"$average_rating.series"
+            }
+    }
+}
+])
+
+//Prosecno po zanrovima
+//11
+db.output.aggregate([
+  {
+      $unwind: "$genres"
+  },
+  {
+      $group: {
+          _id: {
+              genre:"$genres"
+          }, 
+          avgRating: {
+              $avg:"$rating.avgRating"
+          }
+       }
+   },
+   {
+       $project: {
+           _id:0,
+           genre:"$_id.genre",
+           avgRating:1
+       }
+   }
+])
+
+//Kombina zanra
+//9
+db.output.aggregate([
+    {
+        $group: {
+            _id:"$genres",
+            count: {
+                $sum:1
+            }
+        }
+    },
+    {
+        $sort: {
+            count: -1
+        }
+    },
+//    {
+//        $match: {
+//            $expr: {
+//                $gt: [{$size:"$genres"}, 1]
+//            }
+//        }
+//    },
+    {
+        $limit:1
+    }
+])
+
+//Broj umrlih
+db.cast.aggregate([
+    {
+        $match: {
+            $and: [
+            {
+                "startYear": {
+                    $gte:2000
+                }
+            },
+            {
+                "startYear": {
+                    $lte:2100
+                }
+            },
+            {
+                "cast.birthYear": {
+                    $ne:null
+                }
+            },
+            {
+                "cast.deathYear": {
+                    $ne:null
+                }
+            },
+            ]
+        }
+    },
+    {
+        $unwind: "$cast"  
+    },
+    {
+        $group: {
+            _id:0,
+            umrli: {$addToSet: "$cast.primaryName"},
+        }
+    },
+    {
+            $project: {
+                _id:0,
+                umrli: 1,
+                broj: {$size: "$umrli"}
+            }
+        }
+])
+//Broj umrlih 0.009
+//0.058
+db.cast.createIndex({"deathYear":-1})
+db.cast.aggregate([
+{
+    $match: {
+        "deathYear": {
+            $gte:2000
+        }
+    }
+}
+,
+{
+    $group: {
+        "_id":null,
+        count: {
+            $sum:1
+        }
     }
 }
 ])
