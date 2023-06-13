@@ -7,11 +7,12 @@ db.imdb.aggregate([
             _id:{
                 "nconst": "$cast.nconst",
                 "primaryName": "$cast.primaryName",
-                "category": "$cast.category",
                 "birthYear": "$cast.birthYear",
                 "deathYear": "$cast.deathYear",
             },
-            "titles": {$addToSet: "$primaryTitle"},
+            "category": {$push: "$cast.category"},
+            "titles": {$push: {"id": "$_id", "title": "$primaryTitle"}},
+            "averageRating": {$avg: "$rating.avgRating"},
             "total_minutes_acting": {
                 $sum: {
                     $cond: [
@@ -60,9 +61,11 @@ db.imdb.aggregate([
             "details": {
                 "total_minutes_acting": "$total_minutes_acting",
                 "total_times_acting": "$total_times_acting",
-                "total_times_directing": "$total_times_directing"
+                "total_times_directing": "$total_times_directing",
+                "average_rating": "$averageRating"
             }
         }
     },
-    { $out: {db: "data", coll: "cast"}}
+    { $out: {db: "data", coll: "cast_new"}}
 ], {allowDiskUse: true});
+
