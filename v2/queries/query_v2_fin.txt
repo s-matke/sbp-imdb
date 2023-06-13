@@ -1,6 +1,36 @@
 1. 10 najpopularnijih zanrova u odnosu na njihovu prosecnu ocenu i broj pojavljivanja 
 
-TODO
+db.imdb.aggregate([
+    {
+        $unwind: "$genres"
+    },
+    {
+        $group: {
+            _id: {
+                "genre": "$genres"
+            },
+            "rating": { $avg: "$rating.avgRating" },
+            "occurrence": {$sum: 1}
+        }
+    },
+    {
+        $sort: {
+            "rating": -1,
+            "occurrence": -1
+        }
+    },
+    {
+    	$limit: 10
+    },
+    {
+        $project: {
+            _id: 0,
+            "genre": "$_id.genre",
+            "rating": "$rating",
+            "occurrence": "$occurrence"
+        }
+    }
+])
 
 
 2. Koliko epizoda imaju 10 serija sa najvecom prosecnom ocenom? (~1.445)
@@ -190,7 +220,32 @@ db.cast.aggregate([
 
 8. Koja kombinacija zanra je najpopularnija?
 
-TODO
+db.imdb.aggregate([
+    {
+        $group: {
+            _id:"$genres",
+            count: {
+                $sum:1
+            }
+        }
+    },
+    {
+        $sort: {
+            count: -1
+        }
+    },
+    {
+        $limit:1
+    },
+    {
+        $project: {
+            _id: 0,
+            "genres": "$_id",
+            "count": "$count"
+        }
+    }
+])
+
 
 9. Koliki je broj umrlih osoba u 21. veku?
 
