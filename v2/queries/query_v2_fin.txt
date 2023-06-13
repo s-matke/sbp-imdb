@@ -1,3 +1,7 @@
+Indexes:
+db.cast.createIndex({"details.average_rating": -1})
+
+
 1. 10 najpopularnijih zanrova u odnosu na njihovu prosecnu ocenu i broj pojavljivanja 
 
 db.imdb.aggregate([
