@@ -1,0 +1,447 @@
+1. 10 najpopularnijih zanrova u odnosu na njihovu prosecnu ocenu i broj pojavljivanja (~14s)
+
+db.imdb.aggregate([
+    {
+        $unwind: "$genres"
+    },
+    {
+        $group: {
+            _id: {
+                "genre": "$genres"
+            },
+            "rating": { $avg: "$rating.avgRating" },
+            "occurrence": {$sum: 1}
+        }
+    },
+    {
+        $sort: {
+            "rating": -1,
+            "occurrence": -1
+        }
+    },
+    {
+    	$limit: 10
+    },
+    {
+        $project: {
+            _id: 0,
+            "genre": "$_id.genre",
+            "rating": "$rating",
+            "occurrence": "$occurrence"
+        }
+    }
+])
+
+
+2. Koliko epizoda imaju 10 serija sa najvecom prosecnom ocenom? (~10s)
+
+db.imdb.aggregate([
+  {
+    $match: {
+      "titleType": { $in: ["tvSeries", "tvMiniSeries"] },
+      $expr: { $gt: [{$size:"$episodes"}, 0] }
+    }
+  },
+  {
+    $sort: {
+      "rating.avgRating": -1
+    }
+  },
+  {
+    $limit: 10
+  },
+  {
+    $project: {
+      _id: 0,
+      rating: "$rating.avgRating",
+      title: "$primaryTitle",
+      numberOfEpisodes: {
+          $size:"$episodes"
+          }
+    }
+  }
+])
+
+
+3. Koja sezona je najbolje ocenjena u okviru serije? (~33s)
+
+db.imdb.aggregate([
+  {
+    $match: {
+        "titleType": {
+            $in:["tvSeries", "tvMiniSeries"]
+            },
+        $expr: {
+            $gt: [{$size:"$episodes"}, 0]
+            }
+    }
+  },
+  {
+      $unwind:"$episodes"
+  },
+  {
+    $group: {
+        _id: {
+            idSerije : "$_id",
+            sezona:"$episodes.seasonNumber",
+            title:"$primaryTitle"
+        },
+            rating: {
+                $avg:"$episodes.rating.avgRating"
+                }
+        }
+  },
+  {
+      $sort: {
+          "rating":-1
+      }
+  },
+  {
+    $group: {
+      _id: "$_id.idSerije",
+      bestSeason: {
+         $first: {
+             season:"$_id.sezona",
+             rating:"$rating",
+             title:"$_id.title"
+         }
+      }
+    }
+  },
+  {
+      $project: {
+          _id:0,
+          title:"$bestSeason.title",
+          season:"$bestSeason.season",
+          rating:"$bestSeason.rating"
+      }
+  },
+  {
+      $match: {
+          $and: [
+          {
+              season: {
+                  $ne:null
+              }
+          },
+          {
+              rating: {
+                  $ne:null
+              }
+          }
+          ]
+      }
+  }
+])
+
+
+4. Koliko je odstupanje prosecne ocene serije u odnosu na prosecnu ocenu njenih epizoda? (~18s)
+
+db.imdb.aggregate([
+  {
+    $match: {
+        "titleType": {
+            $in:["tvSeries", "tvMiniSeries"]
+            },
+        $expr: {
+            $gt: [{$size:"$episodes"}, 0]
+            }
+    }
+  },
+  {
+      $unwind:"$episodes"
+  },
+  {
+    $group: {
+        _id: {
+            idSerije:"$tconst",
+            title:"$primaryTitle"
+        },
+        rating_episode:{
+            $avg:"$episodes.rating.avgRating"
+            },
+        rating_series: {
+            $first: "$rating.avgRating"
+            }
+        }
+  },
+  {
+    $project: {
+        _id:1,
+        title:"$_id.title",
+        rating_episode:1,
+        rating_series:1,
+        difference:{
+            $abs: {
+                $subtract:["$rating_episode", "$rating_series"]
+                }
+            }
+    }
+  },
+  {
+      $match: {
+          difference: {
+              $ne:null
+          }
+      }
+  },
+])
+
+
+5. Koji reditelj je snimio najvise filmova?
+
+db.imdb.aggregate([
+	{
+	    $match: {
+		"cast.category": {
+		    $in: ["director", " director"]
+		}
+	    }
+	},
+	{
+	    $unwind: "$cast"
+	},
+	{
+	    $match: {
+		"cast.category": {
+		    $in: ["director", " director"]
+		}
+	    }
+	},
+	{
+	    $group: {
+		_id: {
+		    "nconst": "$nconst",
+		    "primaryName": "$cast.primaryName"
+		},
+		"recorded": {$sum: 1}
+	    }
+	},
+	{
+	    $sort: {
+		"recorded": -1
+	    }  
+	},
+	{
+	    $limit: 1  
+	},
+	{
+	    $project: {
+		_id: 0,
+		"name": "$_id.primaryName",
+		"recorded": "$recorded"
+	    }
+	}
+])
+
+
+6. 5 najboljih glumaca u odnosu na broj snimljenih filmova i prosecne ocene. (~2min22s741ms)
+
+db.imdb.aggregate([
+    {
+        $match: {
+            $and: [
+                { "rating": { $exists: true }},
+                { "rating.avgRating": { $ne: null }}
+            ],
+            "cast.category": {
+                $in: ["actor", "actress"]
+            }
+        }
+    },
+    {
+        $unwind: "$cast"
+    },
+    {
+        $group: {
+            _id: {
+                "nconst": "$cast.nconst",
+                "primaryName": "$cast.primaryName"
+            },
+            "avgOcena": { $avg: "$rating.avgRating" },
+            "occurrences": { $sum: 1 }
+        }
+    },
+    {
+        $sort: { "avgOcena": 1, "occurrences": -1 }
+    },
+    {
+        $project: {
+            _id: 0,
+            "title": "$_id.primaryName",
+            "rating": "$avgOcena",
+            "occurrences": "$occurrences"
+        }
+    }
+])
+
+
+7. Osobe koje istovremeno obavljaju funkciju reditelja i glumca (~32s)
+
+db.imdb.aggregate([
+    {
+        $unwind: "$cast"
+    },
+    {
+        $match: {
+            $or: [
+                { "cast.category": {$all: ["actor", " director"]}},
+                { "cast.category": {$all: ["actress", " director"]}}
+            ]
+        }
+    },
+    {
+        $group: {
+            _id: {
+                "nconst": "$nconst",
+                "person": "$cast.primaryName",
+                "roles": "$cast.category"
+            },
+            "titles": {$addToSet: "$primaryTitle" }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            "person": "$_id.person",
+            "titles": "$titles"
+        }
+    },
+])
+
+
+8. Koja kombinacija zanra je najpopularnija?
+
+db.imdb.aggregate([
+    {
+        $group: {
+            _id:"$genres",
+            count: {
+                $sum:1
+            }
+        }
+    },
+    {
+        $sort: {
+            count: -1
+        }
+    },
+    {
+        $limit:1
+    },
+    {
+        $project: {
+            _id: 0,
+            "genres": "$_id",
+            "count": "$count"
+        }
+    }
+])
+
+
+9. Koliki je broj umrlih osoba u 21. veku?
+
+db.output.aggregate([
+    {
+        $match: {
+            $and: [
+            {
+                "startYear": {
+                    $gte:2000
+                }
+            },
+            {
+                "startYear": {
+                    $lte:2100
+                }
+            },
+            {
+                "cast.deathYear": {
+                    $ne:null
+                }
+            },
+            ]
+        }
+    },
+    {
+        $unwind: "$cast"  
+    },
+    {
+        $match: {
+            "cast.deathYear": {$gte: 2000}
+        }  
+    },
+    {
+        $group: {
+            _id:0,
+            umrli: {$addToSet: "$cast.nconst"},
+        }
+    },
+    {
+            $project: {
+                _id:0,
+                umrli: 1,
+                broj: {$size: "$umrli"}
+            }
+        }
+])
+
+
+10. Koliki je ukupan broj minuta koje su proveli glumci na sceni sa najvisom prosecnom ocenom i bar 10 snimljenih filmova?
+
+db.imdb.aggregate([
+    {
+        $unwind: "$cast"
+    },
+    {
+        $group: {
+            _id: {
+                "nconst": "$cast.nconst",
+                "primaryName": "$cast.primaryName",
+                "birthYear": "$cast.birthYear",
+                "deathYear": "$cast.deathYear",
+                "category": "$cast.category",
+            },
+            "rating": {$avg: "$rating.avgRating"},
+            "totalDuration": {$sum: "$runtimeMinutes"},
+            "count": { $sum: 1 }
+        }
+    },
+    {
+        $match: {
+            "count": {$gte: 10}
+        }  
+    },
+    {
+        $sort: { "rating": -1 }
+    },
+    {
+        $project: {
+            _id: 0,
+            "person": "$_id.primaryName",
+            "rating": 1,
+            "totalDuration": 1,
+            "count": 1
+        }
+    }
+])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
